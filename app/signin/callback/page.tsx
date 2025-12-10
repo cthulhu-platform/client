@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { handleCallback } from '../../lib/api';
+import { handleCallback } from '@/lib/api';
 
 function CallbackContent() {
   const router = useRouter();
@@ -25,9 +25,12 @@ function CallbackContent() {
     handleCallback(code, state, provider)
       .then(() => {
         setStatus('success');
-        // Redirect to signin page after a short delay
+        // Get the return URL from localStorage, default to home page
+        const returnUrl = localStorage.getItem('oauth_return_url') || '/';
+        localStorage.removeItem('oauth_return_url');
+        // Redirect to the original route after a short delay
         setTimeout(() => {
-          router.push('/signin');
+          router.push(returnUrl);
         }, 1500);
       })
       .catch((err) => {
@@ -94,7 +97,7 @@ function CallbackContent() {
                 Authentication successful!
               </h1>
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                Redirecting you to the signin page...
+                Redirecting you back...
               </p>
             </div>
           )}

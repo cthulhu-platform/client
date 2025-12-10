@@ -1,13 +1,19 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { useState } from 'react';
 import Nav from '@/components/Nav';
 import FileDropzone from '@/components/FileDropzone';
+import FileContainer from '@/components/FileContainer';
 
-export default function Home() {
+export default function BucketPage() {
+  const params = useParams();
   const router = useRouter();
+  const bucketId = params.bucketid as string;
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleUploadSuccess = (id: string) => {
+    // Upload API creates a new bucket, so navigate to it
     router.push(`/s/${id}`);
   };
 
@@ -20,15 +26,19 @@ export default function Home() {
             CTHULHU
           </h1>
           <p className="text-2xl font-semibold mb-2" style={{ color: '#6A4A98' }}>
-            Sharing files anonymously
+            Bucket: {bucketId}
           </p>
           <p className="text-base text-gray-400">
-            no accounts no tracking just upload and share
+            Upload more files or manage existing ones
           </p>
         </div>
 
         <FileDropzone onUploadSuccess={handleUploadSuccess} />
+        <div key={refreshKey}>
+          <FileContainer bucketId={bucketId} />
+        </div>
       </main>
     </div>
   );
 }
+

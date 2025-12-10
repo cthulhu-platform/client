@@ -60,7 +60,13 @@ export const handleCallback = async (
   provider: string = 'github'
 ): Promise<AuthResponse> => {
   const response = await fetch(
-    `${API_URL}/auth/oauth/${provider}/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`
+    `${API_URL}/auth/oauth/${provider}/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
+    {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    }
   );
 
   if (!response.ok) {
@@ -131,5 +137,80 @@ export const logout = async (refreshToken: string): Promise<void> => {
     // Always clear tokens locally
     tokenStorage.clearTokens();
   }
+};
+
+// File API interfaces
+export interface FileInfo {
+  original_name: string;
+  string_id: string;
+  key: string;
+  size: number;
+  content_type: string;
+}
+
+export interface UploadFileResponse {
+  transaction_id: string;
+  success: boolean;
+  error?: string;
+  storage_id?: string;
+  files?: FileInfo[];
+  total_size?: number;
+}
+
+export interface BucketMetadata {
+  storage_id: string;
+  files: FileInfo[];
+  total_size: number;
+}
+
+// Upload files
+export const uploadFile = async (files: FileList): Promise<{ status: boolean; data?: { url: string; storage_id: string }; error?: string }> => {
+  const formData = new FormData();
+
+  // Append all files to the form data with 'files' field name
+  for (let i = 0; i < files.length; i++) {
+    formData.append('files', files[i]);
+  }
+
+  const response = await fetch(`${API_URL}/files/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  const data: UploadFileResponse = await response.json();
+
+  if (!response.ok || !data.success) {
+    throw new Error(data.error || 'Upload failed');
+  }
+
+  // Construct URL from storage_id
+  const url = data.storage_id ? `/files/s/${data.storage_id}` : '';
+
+  return {
+    status: true,
+    data: {
+      url,
+      storage_id: data.storage_id || '',
+    },
+  };
+};
+
+// Fetch bucket files
+export const fetchBucketFiles = async (bucketId: string): Promise<BucketMetadata> => {
+  const response = await fetch(`${API_URL}/files/s/${bucketId}`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Failed to fetch files' }));
+    throw new Error(error.error || 'Failed to fetch files');
+  }
+
+  const data: BucketMetadata = await response.json();
+  return data;
+};
+
+// Download file
+export const downloadFile = (bucketId: string, fileName: string): void => {
+  const url = `${API_URL}/files/s/${bucketId}/d/${fileName}`;
+  window.open(url, '_blank');
 };
 

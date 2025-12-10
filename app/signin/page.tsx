@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { initiateOAuth, tokenStorage, validateToken, logout, type AuthResponse, type Claims } from '../lib/api';
+import { initiateOAuth, tokenStorage, validateToken, logout, type AuthResponse, type Claims } from '@/lib/api';
 
 function SignInContent() {
   const router = useRouter();
@@ -37,6 +37,11 @@ function SignInContent() {
   const handleSignIn = () => {
     setLoading(true);
     setError(null);
+    // Use existing return URL if available, otherwise default to home
+    const existingReturnUrl = localStorage.getItem('oauth_return_url');
+    if (!existingReturnUrl) {
+      localStorage.setItem('oauth_return_url', '/');
+    }
     initiateOAuth('github');
   };
 
