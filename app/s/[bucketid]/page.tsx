@@ -34,7 +34,7 @@ export default function BucketPage() {
         </div>
 
         <FileDropzone onUploadSuccess={handleUploadSuccess} />
-        <div key={refreshKey}>
+        <div className='w-full' key={refreshKey}>
           <FileContainer bucketId={bucketId} />
         </div>
       </main>

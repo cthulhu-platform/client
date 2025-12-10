@@ -38,13 +38,24 @@ export const tokenStorage = {
     if (typeof window === 'undefined') return;
     localStorage.setItem('access_token', accessToken);
     localStorage.setItem('refresh_token', refreshToken);
+    // Dispatch custom event to notify components of auth state change
+    window.dispatchEvent(new Event('auth-state-changed'));
   },
   
   clearTokens: (): void => {
     if (typeof window === 'undefined') return;
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    // Dispatch custom event to notify components of auth state change
+    window.dispatchEvent(new Event('auth-state-changed'));
   },
+};
+
+// Check if user is authenticated
+export const isAuthenticated = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const accessToken = tokenStorage.getAccessToken();
+  return !!accessToken;
 };
 
 // Initiate OAuth flow - redirects to gateway

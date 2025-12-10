@@ -51,7 +51,7 @@ export default function FileContainer({ bucketId }: FileContainerProps) {
 
   if (!displayBucketId) {
     return (
-      <div className="w-full max-w-2xl mt-8">
+      <div className="w-full max-w-2xl mx-auto mt-8">
         <div className="p-6 rounded-lg border" style={{ borderColor: `${PURPLE_THEME}40` }}>
           <h3 className="text-lg font-semibold mb-4" style={{ color: PURPLE_THEME }}>
             View Files from Bucket
@@ -82,7 +82,7 @@ export default function FileContainer({ bucketId }: FileContainerProps) {
   }
 
   return (
-    <div className="w-full max-w-2xl mt-8">
+    <div className="w-full max-w-2xl mx-auto mt-8">
       <div className="p-6 rounded-lg border" style={{ borderColor: `${PURPLE_THEME}40` }}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold" style={{ color: PURPLE_THEME }}>

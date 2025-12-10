@@ -105,7 +105,7 @@ export default function FileDropzone({ onUploadSuccess }: FileDropzoneProps) {
   };
 
   return (
-    <div className="w-full max-w-2xl">
+    <div className="w-full max-w-2xl mx-auto">
       <div
         className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-all ${
           isDragActive ? 'border-opacity-100' : 'border-opacity-50'

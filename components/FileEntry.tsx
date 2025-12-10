@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { downloadFile } from '@/lib/api';
+import React, { useState, useEffect } from 'react';
+import { downloadFile, isAuthenticated } from '@/lib/api';
 
 interface FileEntryProps {
   fileName: string;
@@ -11,8 +11,36 @@ interface FileEntryProps {
 }
 
 export default function FileEntry({ fileName, originalName, size, bucketId }: FileEntryProps) {
+  const [authenticated, setAuthenticated] = useState(false);
   const PURPLE_THEME = '#6A4A98';
   const PURPLE_LIGHT = '#8B6FB8';
+
+  // Check authentication status on mount and listen for changes
+  useEffect(() => {
+    const checkAuth = () => {
+      setAuthenticated(isAuthenticated());
+    };
+
+    checkAuth();
+    
+    // Listen for auth state changes
+    const handleAuthStateChange = () => {
+      checkAuth();
+    };
+    
+    // Also check when storage changes (e.g., after login/logout in another tab)
+    const handleStorageChange = () => {
+      checkAuth();
+    };
+    
+    window.addEventListener('auth-state-changed', handleAuthStateChange);
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('auth-state-changed', handleAuthStateChange);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -61,22 +89,24 @@ export default function FileEntry({ fileName, originalName, size, bucketId }: Fi
         </div>
       </div>
       <div className="flex gap-2 ml-4">
-        <button
-          onClick={handleDelete}
-          className="py-2 px-4 rounded-lg transition-colors font-medium flex-shrink-0"
-          style={{
-            backgroundColor: '#dc2626',
-            color: '#ffffff',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#ef4444';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#dc2626';
-          }}
-        >
-          Delete
-        </button>
+        {authenticated && (
+          <button
+            onClick={handleDelete}
+            className="py-2 px-4 rounded-lg transition-colors font-medium flex-shrink-0"
+            style={{
+              backgroundColor: '#dc2626',
+              color: '#ffffff',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#ef4444';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#dc2626';
+            }}
+          >
+            Delete
+          </button>
+        )}
         <button
           onClick={handleDownload}
           className="py-2 px-4 rounded-lg transition-colors font-medium flex-shrink-0"
