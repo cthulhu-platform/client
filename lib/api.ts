@@ -232,12 +232,17 @@ export interface BucketAdminsResponse {
 }
 
 // Upload files
-export const uploadFile = async (files: FileList): Promise<{ status: boolean; data?: { url: string; storage_id: string }; error?: string }> => {
+export const uploadFile = async (files: FileList, password?: string): Promise<{ status: boolean; data?: { url: string; storage_id: string }; error?: string }> => {
   const formData = new FormData();
 
   // Append all files to the form data with 'files' field name
   for (let i = 0; i < files.length; i++) {
     formData.append('files', files[i]);
+  }
+
+  // Append password if provided
+  if (password && password.trim()) {
+    formData.append('password', password.trim());
   }
 
   // Ensure valid token if user is authenticated (for elevated requests)
@@ -282,9 +287,82 @@ export const uploadFile = async (files: FileList): Promise<{ status: boolean; da
   };
 };
 
+// Bucket access token storage utilities
+export const bucketTokenStorage = {
+  getBucketAccessToken: (bucketId: string): string | null => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(`bucket_access_${bucketId}`);
+  },
+  
+  setBucketAccessToken: (bucketId: string, token: string): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(`bucket_access_${bucketId}`, token);
+  },
+  
+  clearBucketAccessToken: (bucketId: string): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(`bucket_access_${bucketId}`);
+  },
+};
+
+// Check if bucket is protected
+export const checkBucketProtected = async (bucketId: string): Promise<{protected: boolean, bucket_id: string}> => {
+  const response = await fetch(`${API_URL}/files/s/${bucketId}/protected`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Failed to check bucket protection' }));
+    throw new Error(error.error || 'Failed to check bucket protection');
+  }
+
+  const data = await response.json();
+  return data;
+};
+
+// Authenticate bucket with password
+export const authenticateBucket = async (bucketId: string, password: string): Promise<{access_token: string, expires_in: number}> => {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  // Include auth token if user is authenticated
+  const accessToken = tokenStorage.getAccessToken();
+  if (accessToken) {
+    try {
+      const validToken = await ensureValidToken();
+      headers['Authorization'] = `Bearer ${validToken}`;
+    } catch (error) {
+      // Continue without auth token if validation fails
+    }
+  }
+
+  const response = await fetch(`${API_URL}/files/s/${bucketId}/authenticate`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ password }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Authentication failed' }));
+    throw new Error(error.error || 'Authentication failed');
+  }
+
+  const data = await response.json();
+  return data;
+};
+
 // Fetch bucket files
 export const fetchBucketFiles = async (bucketId: string): Promise<BucketMetadata> => {
-  const response = await fetch(`${API_URL}/files/s/${bucketId}`);
+  const headers: HeadersInit = {};
+  
+  // Include bucket access token if available
+  const bucketToken = bucketTokenStorage.getBucketAccessToken(bucketId);
+  if (bucketToken) {
+    headers['X-Bucket-Access'] = bucketToken;
+  }
+
+  const response = await fetch(`${API_URL}/files/s/${bucketId}`, {
+    headers,
+  });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Failed to fetch files' }));
@@ -296,14 +374,55 @@ export const fetchBucketFiles = async (bucketId: string): Promise<BucketMetadata
 };
 
 // Download file
-export const downloadFile = (bucketId: string, fileName: string): void => {
+export const downloadFile = async (bucketId: string, fileName: string): Promise<void> => {
+  const bucketToken = bucketTokenStorage.getBucketAccessToken(bucketId);
   const url = `${API_URL}/files/s/${bucketId}/d/${fileName}`;
-  window.open(url, '_blank');
+  
+  if (bucketToken) {
+    // For protected buckets, use fetch with token in header
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'X-Bucket-Access': bucketToken,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Download error:', error);
+      throw error;
+    }
+  } else {
+    // For unprotected buckets, open directly
+    window.open(url, '_blank');
+  }
 };
 
 // Fetch bucket admins
 export const fetchBucketAdmins = async (bucketId: string): Promise<BucketAdminsResponse> => {
-  const response = await fetch(`${API_URL}/files/s/${bucketId}/admins`);
+  const headers: HeadersInit = {};
+  
+  // Include bucket access token if available
+  const bucketToken = bucketTokenStorage.getBucketAccessToken(bucketId);
+  if (bucketToken) {
+    headers['X-Bucket-Access'] = bucketToken;
+  }
+
+  const response = await fetch(`${API_URL}/files/s/${bucketId}/admins`, {
+    headers,
+  });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Failed to fetch admins' }));

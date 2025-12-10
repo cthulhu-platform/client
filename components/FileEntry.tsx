@@ -24,8 +24,13 @@ export default function FileEntry({ fileName, originalName, size, bucketId }: Fi
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const handleDownload = () => {
-    downloadFile(bucketId, fileName);
+  const handleDownload = async () => {
+    try {
+      await downloadFile(bucketId, fileName);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Download failed. Please check if you have access to this bucket.');
+    }
   };
 
   const handleDelete = () => {

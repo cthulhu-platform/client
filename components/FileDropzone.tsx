@@ -12,6 +12,8 @@ export default function FileDropzone({ onUploadSuccess }: FileDropzoneProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string>('');
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isProtected, setIsProtected] = useState(false);
+  const [password, setPassword] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const PURPLE_THEME = '#6A4A98';
@@ -47,7 +49,9 @@ export default function FileDropzone({ onUploadSuccess }: FileDropzoneProps) {
     setUploadProgress(`Uploading ${files.length} file${files.length > 1 ? 's' : ''}...`);
 
     try {
-      const result = await uploadFile(files);
+      // Include password if protection is enabled and password is provided
+      const passwordToUse = isProtected && password.trim() ? password : undefined;
+      const result = await uploadFile(files, passwordToUse);
       
       if (result.status && result.data) {
         // Extract bucket ID from URL (format: /files/s/{id})
@@ -60,10 +64,12 @@ export default function FileDropzone({ onUploadSuccess }: FileDropzoneProps) {
           onUploadSuccess(bucketId);
         }
 
-        // Clear the file input
+        // Clear the file input and password
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
+        setPassword('');
+        setIsProtected(false);
 
         // Reset after 3 seconds
         setTimeout(() => {
@@ -75,7 +81,7 @@ export default function FileDropzone({ onUploadSuccess }: FileDropzoneProps) {
     } catch (error) {
       console.error("Upload error:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setUploadError(`❌ Upload failed: ${errorMessage}`);
+      setUploadError(`Upload failed: ${errorMessage}`);
       setUploadProgress('');
 
       // Reset after 5 seconds
@@ -158,6 +164,72 @@ export default function FileDropzone({ onUploadSuccess }: FileDropzoneProps) {
             multiple
             onChange={handleFileInputChange}
           />
+          
+          {/* Password Protection Toggle */}
+          <div className="mb-4 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <label className="flex items-center justify-center gap-3 cursor-pointer">
+              <span className="text-sm font-medium" style={{ color: PURPLE_LIGHT }}>
+                Protect with password
+              </span>
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={isProtected}
+                  onChange={(e) => {
+                    setIsProtected(e.target.checked);
+                    if (!e.target.checked) {
+                      setPassword('');
+                    }
+                  }}
+                  disabled={isUploading}
+                  className="sr-only"
+                />
+                <div
+                  className="w-14 h-7 rounded-full transition-colors duration-200 border-2"
+                  style={{
+                    backgroundColor: isProtected ? PURPLE_THEME : '#ffffff',
+                    borderColor: isProtected ? PURPLE_THEME : '#9ca3af',
+                  }}
+                >
+                  <div
+                    className={`w-5 h-5 rounded-full bg-white transition-transform duration-200 mt-0.5 shadow-md ${
+                      isProtected ? 'translate-x-7' : 'translate-x-0.5'
+                    }`}
+                    style={{
+                      backgroundColor: isProtected ? '#ffffff' : '#9ca3af',
+                    }}
+                  />
+                </div>
+              </div>
+            </label>
+            
+            {isProtected && (
+              <div className="mt-3">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setUploadError(null);
+                  }}
+                  placeholder="Enter password for bucket"
+                  disabled={isUploading}
+                  className="w-full px-4 py-2 bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 text-white"
+                  style={{
+                    borderColor: PURPLE_THEME,
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.boxShadow = `0 0 0 2px ${PURPLE_THEME}40`;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.boxShadow = '';
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            )}
+          </div>
+          
           <button
             className="py-2 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             style={{
