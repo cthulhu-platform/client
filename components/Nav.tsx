@@ -1,41 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { isAuthenticated, logout, tokenStorage } from '@/lib/api';
+import { useAuth } from '@/components/hooks/useAuth';
 
 export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isAuthenticated, logout } = useAuth();
   const PURPLE_THEME = '#6A4A98';
-
-  // Check authentication status on mount and when pathname changes
-  useEffect(() => {
-    const checkAuth = () => {
-      setIsLoggedIn(isAuthenticated());
-    };
-
-    checkAuth();
-    
-    // Listen for auth state changes (from same tab)
-    const handleAuthStateChange = () => {
-      checkAuth();
-    };
-    
-    // Also check when storage changes (e.g., after login/logout in another tab)
-    const handleStorageChange = () => {
-      checkAuth();
-    };
-    
-    window.addEventListener('auth-state-changed', handleAuthStateChange);
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('auth-state-changed', handleAuthStateChange);
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [pathname]);
 
   const handleSignInClick = () => {
     // Store the current route (unless already on signin page)
@@ -47,22 +19,9 @@ export default function Nav() {
 
   const handleLogoutClick = async () => {
     try {
-      const refreshToken = tokenStorage.getRefreshToken();
-      if (refreshToken) {
-        await logout(refreshToken);
-      } else {
-        // Clear tokens locally even if no refresh token
-        tokenStorage.clearTokens();
-      }
-      setIsLoggedIn(false);
-      // Redirect to home page after logout
-      router.push('/');
+      await logout();
     } catch (error) {
       console.error('Logout error:', error);
-      // Clear tokens locally even if API call fails
-      tokenStorage.clearTokens();
-      setIsLoggedIn(false);
-      router.push('/');
     }
   };
 
@@ -71,7 +30,7 @@ export default function Nav() {
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           {/* Placeholder picture/logo on the left */}
-          <div className="flex items-center">
+          <div className="flex items-center" onClick={() => router.push('/') } style={{ cursor: 'pointer' }}>
             <div 
               className="w-10 h-10 rounded-lg flex items-center justify-center"
               style={{ backgroundColor: `${PURPLE_THEME}20` }}
@@ -81,7 +40,7 @@ export default function Nav() {
           </div>
 
           {/* Signin/Logout button on the right */}
-          {isLoggedIn ? (
+          {isAuthenticated ? (
             <button
               onClick={handleLogoutClick}
               className="py-2 px-6 rounded-lg transition-colors font-medium"

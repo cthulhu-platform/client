@@ -314,3 +314,36 @@ export const fetchBucketAdmins = async (bucketId: string): Promise<BucketAdminsR
   return data;
 };
 
+// Get current user ID from token (returns null if not authenticated or token invalid)
+export const getCurrentUserId = async (): Promise<string | null> => {
+  const accessToken = tokenStorage.getAccessToken();
+  if (!accessToken) {
+    return null;
+  }
+
+  try {
+    const claims = await validateToken(accessToken);
+    return claims.user_id;
+  } catch {
+    // Token invalid or expired
+    return null;
+  }
+};
+
+// Check if current user is a bucket admin
+export const isBucketAdmin = async (bucketId: string): Promise<boolean> => {
+  try {
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      return false;
+    }
+
+    const admins = await fetchBucketAdmins(bucketId);
+    // Check if user is in admins list (either as owner or regular admin)
+    return admins.admins.some(admin => admin.user_id === userId) || 
+           (admins.owner !== null && admins.owner.user_id === userId);
+  } catch {
+    return false;
+  }
+};
+

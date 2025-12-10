@@ -5,12 +5,14 @@ import { useState } from 'react';
 import Nav from '@/components/Nav';
 import FileDropzone from '@/components/FileDropzone';
 import FileContainer from '@/components/FileContainer';
+import { useAuth } from '@/components/hooks/useAuth';
 
 export default function BucketPage() {
   const params = useParams();
   const router = useRouter();
   const bucketId = params.bucketid as string;
   const [refreshKey, setRefreshKey] = useState(0);
+  const { isAdmin } = useAuth({ bucketId });
 
   const handleUploadSuccess = (id: string) => {
     // Upload API creates a new bucket, so navigate to it
@@ -29,11 +31,11 @@ export default function BucketPage() {
             Bucket: {bucketId}
           </p>
           <p className="text-base text-gray-400">
-            Upload more files or manage existing ones
+            {isAdmin ? 'Upload more files or manage existing ones' : 'View files in this bucket'}
           </p>
         </div>
 
-        <FileDropzone onUploadSuccess={handleUploadSuccess} />
+        {isAdmin && <FileDropzone onUploadSuccess={handleUploadSuccess} />}
         <div className='w-full' key={refreshKey}>
           <FileContainer bucketId={bucketId} />
         </div>
