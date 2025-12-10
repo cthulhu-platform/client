@@ -150,6 +150,48 @@ export const logout = async (refreshToken: string): Promise<void> => {
   }
 };
 
+// Hard logout - clears tokens and redirects to sign-in
+// Used when token refresh fails or authentication is required but unavailable
+export const hardLogout = (): void => {
+  // Clear tokens from storage
+  tokenStorage.clearTokens();
+  
+  // Redirect to sign-in page
+  if (typeof window !== 'undefined') {
+    window.location.href = '/signin';
+  }
+};
+
+// Ensure valid token - validates current token and refreshes if needed
+// Returns valid access token or throws error (which triggers hard logout)
+export const ensureValidToken = async (): Promise<string> => {
+  const accessToken = tokenStorage.getAccessToken();
+  const refreshTokenValue = tokenStorage.getRefreshToken();
+  
+  // If no tokens at all, user is not authenticated
+  if (!accessToken || !refreshTokenValue) {
+    throw new Error('No authentication tokens available');
+  }
+  
+  try {
+    // Try to validate the current access token
+    await validateToken(accessToken);
+    // Token is valid, return it
+    return accessToken;
+  } catch (validateError) {
+    // Token validation failed, try to refresh
+    try {
+      const newTokens = await refreshToken(refreshTokenValue);
+      // Refresh succeeded, return new access token
+      return newTokens.access_token;
+    } catch (refreshError) {
+      // Refresh failed, perform hard logout
+      hardLogout();
+      throw new Error('Token refresh failed - user logged out');
+    }
+  }
+};
+
 // File API interfaces
 export interface FileInfo {
   original_name: string;
@@ -174,6 +216,21 @@ export interface BucketMetadata {
   total_size: number;
 }
 
+export interface AdminInfo {
+  user_id: string;
+  email: string;
+  username?: string;
+  avatar_url?: string;
+  is_owner: boolean;
+  created_at: number;
+}
+
+export interface BucketAdminsResponse {
+  bucket_id: string;
+  owner: AdminInfo | null;
+  admins: AdminInfo[];
+}
+
 // Upload files
 export const uploadFile = async (files: FileList): Promise<{ status: boolean; data?: { url: string; storage_id: string }; error?: string }> => {
   const formData = new FormData();
@@ -183,8 +240,27 @@ export const uploadFile = async (files: FileList): Promise<{ status: boolean; da
     formData.append('files', files[i]);
   }
 
+  // Ensure valid token if user is authenticated (for elevated requests)
+  // If token exists, validate and refresh if needed before making request
+  const headers: HeadersInit = {};
+  const accessToken = tokenStorage.getAccessToken();
+  
+  if (accessToken) {
+    try {
+      // Ensure token is valid (validates and refreshes if needed)
+      const validToken = await ensureValidToken();
+      headers['Authorization'] = `Bearer ${validToken}`;
+    } catch (error) {
+      // Token validation/refresh failed - hard logout already called
+      // Re-throw to prevent upload with invalid token
+      throw new Error('Authentication failed - please sign in again');
+    }
+  }
+  // If no token, proceed with anonymous upload (no Authorization header)
+
   const response = await fetch(`${API_URL}/files/upload`, {
     method: 'POST',
+    headers,
     body: formData,
   });
 
@@ -223,5 +299,18 @@ export const fetchBucketFiles = async (bucketId: string): Promise<BucketMetadata
 export const downloadFile = (bucketId: string, fileName: string): void => {
   const url = `${API_URL}/files/s/${bucketId}/d/${fileName}`;
   window.open(url, '_blank');
+};
+
+// Fetch bucket admins
+export const fetchBucketAdmins = async (bucketId: string): Promise<BucketAdminsResponse> => {
+  const response = await fetch(`${API_URL}/files/s/${bucketId}/admins`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Failed to fetch admins' }));
+    throw new Error(error.error || 'Failed to fetch admins');
+  }
+
+  const data: BucketAdminsResponse = await response.json();
+  return data;
 };
 
