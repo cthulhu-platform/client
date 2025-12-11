@@ -74,7 +74,6 @@ export default function BucketPasswordModal({ bucketId, onSuccess, onCancel }: B
               style={{
                 borderColor: error ? '#ef4444' : PURPLE_THEME,
                 color: '#ffffff',
-                focusRingColor: PURPLE_THEME,
               }}
               placeholder="Enter password"
               disabled={isLoading}
